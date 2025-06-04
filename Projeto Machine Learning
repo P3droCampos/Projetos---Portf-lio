@@ -1,0 +1,153 @@
+MACHINE LEARNING - TREINAMENTO DE DATASET
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import accuracy_score, confusion_matrix
+import matplotlib.pyplot as plt
+import seaborn as sns
+import joblib
+
+# Carregar dados
+df = pd.read_excel("Saude_De_Cachorros_Por_Raça.xlsx")
+
+# Remover coluna ID e linhas sem alvo
+df.drop(columns=["ID"], inplace=True)
+df = df[df["Saudável"].notna()]
+
+# Preencher valores faltantes
+for col in df.select_dtypes(include=["object"]).columns:
+    df[col] = df[col].fillna(df[col].mode()[0])
+for col in df.select_dtypes(include=["float64", "int64"]).columns:
+    df[col] = df[col].fillna(df[col].mean())
+
+# Codificar variáveis categóricas
+label_encoders = {}
+for col in df.select_dtypes(include=["object"]).columns:
+    le = LabelEncoder()
+    df[col] = le.fit_transform(df[col])
+    label_encoders[col] = le
+
+# Separar features e alvo
+X = df.drop("Saudável", axis=1)
+y = df["Saudável"]
+
+# Separar treino/teste
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Treinar modelo
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+
+# Avaliação
+y_pred = model.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)
+conf_matrix = confusion_matrix(y_test, y_pred)
+
+# Mostrar matriz de confusão
+plt.figure(figsize=(6, 4))
+sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues", 
+            xticklabels=label_encoders["Saudável"].classes_,
+            yticklabels=label_encoders["Saudável"].classes_)
+plt.xlabel("Previsto")
+plt.ylabel("Real")
+plt.title(f"Matriz de Confusão - Acurácia: {accuracy:.2f}")
+plt.tight_layout()
+plt.show()
+
+# Salvar modelo e codificadores
+joblib.dump(model, "modelo_cachorros.pkl")
+joblib.dump(label_encoders, "encoders.pkl")
+----------------------------------------------------------------------------------------------------- 
+Predict do Modelo:
+import joblib
+import pandas as pd
+
+# Carregar modelo e encoders
+model = joblib.load("modelo_cachorros.pkl")
+label_encoders = joblib.load("encoders.pkl")
+
+# Opções válidas extraídas do dataset
+opcoes = {
+    "Breed": ['Australian Shepherd', 'Dachshund', 'Chihuahua', 'Siberian Husky', 'Boxer', 'Labrador Retriever',
+              'Bulldog', 'Rottweiler', 'German Shepherd', 'Golden Retriever', 'Poodle', 'Doberman', 'Great Dane',
+              'Beagle', 'Yorkshire Terrier'],
+    "Tamanho da Raça": ['Pequeno', 'Médio', 'Grande'],
+    "Sexo": ['Macho', 'Femea'],
+    "Status da Castração": ['Orquiectomia', 'Ovariohisterectomia', 'Nenhum'],
+    "Nível de Atividade Diária": ['Nenhuma', 'Baixo', 'Moderado', 'Ativo', 'Muito ativo'],
+    "Dieta": ['Feita em casa', 'Comida Molhada', 'Dieta especial', 'Ração seca'],
+    "Marca de Ração": ['Wellness', 'Special', 'Purina', 'Iams', 'Blue Buffalo', 'Royal Canin',
+                       'Nutro', 'Pedigree', "Hill's Science"],
+    "Outros animais na casa": ['Sim', 'Não'],
+    "Medicamentos?": ['Sim', 'Não'],
+    "Convulsão": ['Sim', 'Não'],
+    "Nível de Atividade do Dono": ['Nenhum', 'Baixo', 'Moderado', 'Ativo', 'Muito Ativo']
+}
+
+# Função para exibir opções e capturar input
+def escolher(col):
+    print(f"\nOpções para '{col}':")
+    for i, val in enumerate(opcoes[col]):
+        print(f"{i + 1}. {val}")
+    idx = int(input(f"Escolha o número correspondente à opção desejada para '{col}': ")) - 1
+    return opcoes[col][idx]
+
+# Verificar se deseja rodar dados de teste automáticos
+usar_teste = input("Usar dados de teste automáticos? (s/n): ").strip().lower() == "s"
+
+if usar_teste:
+    entrada = {
+        "Breed": "Golden Retriever",
+        "Tamanho da Raça": "Grande",
+        "Sexo": "Macho",
+        "Idade": 5.0,
+        "Peso": 30.0,
+        "Status da Castração": "Orquiectomia",
+        "Nível de Atividade Diária": "Ativo",
+        "Dieta": "Ração seca",
+        "Marca de Ração": "Royal Canin",
+        "Distância caminhada diária (milhas)": 3.0,
+        "Outros animais na casa": "Sim",
+        "Medicamentos?": "Não",
+        "Convulsão": "Não",
+        "Horas de Sono": 10.0,
+        "Horas de Brincadeira": 3.0,
+        "Nível de Atividade do Dono": "Ativo",
+        "Visitas anuais ao veterinário": 2.0,
+        "Temperatura mediana (F)": 72.0
+    }
+else:
+    entrada = {
+        "Breed": escolher("Breed"),
+        "Tamanho da Raça": escolher("Tamanho da Raça"),
+        "Sexo": escolher("Sexo"),
+        "Idade": float(input("Idade (em anos): ")),
+        "Peso": float(input("Peso (kg): ")),
+        "Status da Castração": escolher("Status da Castração"),
+        "Nível de Atividade Diária": escolher("Nível de Atividade Diária"),
+        "Dieta": escolher("Dieta"),
+        "Marca de Ração": escolher("Marca de Ração"),
+        "Distância caminhada diária (milhas)": float(input("Distância caminhada diária (milhas): ")),
+        "Outros animais na casa": escolher("Outros animais na casa"),
+        "Medicamentos?": escolher("Medicamentos?"),
+        "Convulsão": escolher("Convulsão"),
+        "Horas de Sono": float(input("Horas de sono por dia: ")),
+        "Horas de Brincadeira": float(input("Horas de brincadeira por dia: ")),
+        "Nível de Atividade do Dono": escolher("Nível de Atividade do Dono"),
+        "Visitas anuais ao veterinário": float(input("Visitas ao veterinário por ano: ")),
+        "Temperatura mediana (F)": float(input("Temperatura média onde vive (Fahrenheit): "))
+    }
+
+# Codificar entradas
+for col in entrada:
+    if col in label_encoders:
+        entrada[col] = label_encoders[col].transform([entrada[col]])[0]
+
+# Converter para DataFrame
+df_input = pd.DataFrame([entrada])
+
+# Fazer predição
+pred = model.predict(df_input)[0]
+resultado = label_encoders["Saudável"].inverse_transform([pred])[0]
+print(f"\n📊 Resultado: O cachorro está {'SAUDÁVEL' if resultado == 'Sim' else 'NÃO SAUDÁVEL'}")
